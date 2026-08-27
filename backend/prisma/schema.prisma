@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id               String   @id @default(uuid())
+  name             String
+  email            String   @unique
+  phone            String   @unique
+  passwordHash     String
+  role             Role     @default(USER)
+  upiId            String   @unique
+  preferredBank    String?
+  preferredApp     String?
+  currentRiskScore Float    @default(0)
+  isBlocked        Boolean  @default(false)
+  emailVerified    Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  sentTransactions     Transaction[]     @relation("SenderTransactions")
+  receivedTransactions Transaction[]     @relation("ReceiverTransactions")
+  behaviorProfile       BehaviorProfile?
+
+  @@index([email])
+  @@index([upiId])
+}
+
+enum TransactionType {
+  P2P
+  P2M
+  QR_PAYMENT
+  BILL_PAYMENT
+  RECHARGE
+  MERCHANT_PAYMENT
+  REFUND
+  SUBSCRIPTION
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  BLOCKED
+  UNDER_REVIEW
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  txnRef           String          @unique
+  senderId         String
+  sender           User            @relation("SenderTransactions", fields: [senderId], references: [id])
+  receiverId       String?
+  receiver         User?           @relation("ReceiverTransactions", fields: [receiverId], references: [id])
+  type             TransactionType
+  amount           Float
+  currency         String          @default("INR")
+  upiApp           String
+  bank             String
+  merchantName     String?
+  merchantCategory String?
+  latitude         Float?
+  longitude        Float?
+  city             String?
+  state            String?
+  deviceId         String
+  os               String?
+  ipAddress        String?
+  status           PaymentStatus   @default(PENDING)
+  timestamp        DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+
+  fraudFlag FraudFlag?
+
+  @@index([senderId])
+  @@index([timestamp])
+  @@index([deviceId])
+}
+
+model FraudFlag {
+  id                   String      @id @default(uuid())
+  transactionId        String      @unique
+  transaction          Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  riskScore            Float
+  isFraudPredicted     Boolean
+  modelUsed            String
+  modelConfidence      Float
+  topFactors           Json
+  shapValues           Json?
+  humanReadableSummary String?
+  triggeredRules       Json?
+  createdAt            DateTime    @default(now())
+
+  @@index([riskScore])
+}
+
+model BehaviorProfile {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avgTransactionAmount    Float    @default(0)
+  dailyTxnCount           Float    @default(0)
+  weeklySpend             Float    @default(0)
+  monthlySpend            Float    @default(0)
+  normalTxnHourStart      Int?
+  normalTxnHourEnd        Int?
+  lastComputedAt          DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+enum RuleType {
+  AMOUNT_THRESHOLD
+  TIME_WINDOW
+  NEW_DEVICE
+  IMPOSSIBLE_TRAVEL
+  MERCHANT_BLACKLIST
+  VELOCITY_CHECK
+  FAILED_ATTEMPTS
+  CUSTOM
+}
+
+model FraudRule {
+  id          String    @id @default(uuid())
+  name        String
+  type        RuleType
+  description String?
+  config      Json
+  isEnabled   Boolean   @default(true)
+  weight      Float     @default(1.0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

@@ -1,0 +1,78 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: risklens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: risklens
+      POSTGRES_PASSWORD: risklens_dev_password
+      POSTGRES_DB: risklens_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U risklens -d risklens_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: risklens-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  ai-service:
+    build:
+      context: ./ai-service
+    container_name: risklens-ai-service
+    restart: unless-stopped
+    env_file: ./ai-service/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-service:/app
+      - ai_models:/app/models
+    depends_on:
+      - redis
+
+  backend:
+    build:
+      context: ./backend
+    container_name: risklens-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    ports:
+      - "4000:4000"
+      - "5555:5555"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ai-service:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: risklens-frontend
+    restart: unless-stopped
+    env_file: ./frontend/.env
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  ai_models:

@@ -1,0 +1,195 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "SentinelPay - Backend API",
+    "version": "1.0.0",
+    "description": "Authentication, transaction simulation, admin analytics, and fraud rule management for the SentinelPay platform."
+  },
+  "servers": [{ "url": "http://localhost:4000/api" }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "phone", "password", "upiId"],
+                "properties": {
+                  "name": { "type": "string", "example": "Aditya Nambiar" },
+                  "email": { "type": "string", "example": "aditya@example.com" },
+                  "phone": { "type": "string", "example": "9800000001" },
+                  "password": { "type": "string", "example": "SecurePass123" },
+                  "upiId": { "type": "string", "example": "aditya@okhdfcbank" },
+                  "preferredBank": { "type": "string", "example": "HDFC Bank" },
+                  "preferredApp": { "type": "string", "example": "PhonePe" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "User created, returns access and refresh tokens" },
+          "400": { "description": "Validation error" },
+          "409": { "description": "User already exists" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in with email and password",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful, returns access and refresh tokens" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get the current authenticated user's profile",
+        "responses": { "200": { "description": "User profile" }, "401": { "description": "Not authenticated" } }
+      },
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Update the current user's profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "preferredBank": { "type": "string" },
+                  "preferredApp": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated profile" } }
+      }
+    },
+    "/transactions/simulate": {
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Simulate a UPI transaction and get a real-time fraud risk score",
+        "description": "Calls the AI service for an ML-based risk score, evaluates active fraud rules, combines both into a final score, and persists the transaction and fraud flag.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["amount", "type", "upiApp", "bank", "deviceId"],
+                "properties": {
+                  "amount": { "type": "number", "example": 60000 },
+                  "type": { "type": "string", "example": "P2P" },
+                  "upiApp": { "type": "string", "example": "PhonePe" },
+                  "bank": { "type": "string", "example": "HDFC Bank" },
+                  "hourOfDay": { "type": "integer", "example": 2 },
+                  "deviceId": { "type": "string", "example": "dev-original123" },
+                  "txnVelocity1h": { "type": "integer", "example": 0 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Transaction scored and saved, returns prediction with SHAP factors and triggered rules" },
+          "502": { "description": "AI service unreachable or processing error" }
+        }
+      }
+    },
+    "/transactions/mine": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Get the current user's transaction history",
+        "responses": { "200": { "description": "List of the user's transactions with fraud flags" } }
+      }
+    },
+    "/admin/overview": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Platform-wide fraud analytics (ADMIN only)",
+        "responses": {
+          "200": { "description": "Total users, transactions, flagged count, average risk score, bank/app breakdown, recent transactions" },
+          "403": { "description": "Admin role required" }
+        }
+      }
+    },
+    "/rules": {
+      "get": {
+        "tags": ["Rules"],
+        "summary": "List all fraud rules (ADMIN only)",
+        "responses": { "200": { "description": "List of rules" } }
+      },
+      "post": {
+        "tags": ["Rules"],
+        "summary": "Create a new fraud rule (ADMIN only)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "type", "config"],
+                "properties": {
+                  "name": { "type": "string", "example": "High Value Transaction" },
+                  "type": { "type": "string", "enum": ["AMOUNT_THRESHOLD", "TIME_WINDOW", "NEW_DEVICE", "VELOCITY_CHECK", "MERCHANT_BLACKLIST"] },
+                  "description": { "type": "string" },
+                  "config": { "type": "object", "example": { "maxAmount": 50000 } },
+                  "weight": { "type": "number", "example": 1.5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Rule created" } }
+      }
+    },
+    "/rules/{id}/toggle": {
+      "patch": {
+        "tags": ["Rules"],
+        "summary": "Toggle a rule on or off (ADMIN only)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Updated rule" } }
+      }
+    },
+    "/rules/{id}": {
+      "delete": {
+        "tags": ["Rules"],
+        "summary": "Delete a fraud rule (ADMIN only)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Rule deleted" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RiskLens AI - Design Tokens
+   Light mode = default for landing/marketing pages
+   Dark mode = default for the product dashboard
+   Toggle via [data-theme="dark"] or [data-theme="light"] on <html> */
+
+:root {
+  /* ---- Light mode (default) ---- */
+  --bg: #F7F7FB;
+  --surface: #FFFFFF;
+  --surface-glass: rgba(255, 255, 255, 0.7);
+  --border: #E7E7F0;
+  --text-primary: #14172A;
+  --text-secondary: #6B7089;
+
+  --accent: #6D4FEA;
+  --accent-soft: rgba(109, 79, 234, 0.12);
+
+  --risk-safe: #10B981;
+  --risk-watch: #F59E0B;
+  --risk-high: #E11D48;
+
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --shadow-soft: 0 8px 30px rgba(20, 23, 42, 0.08);
+  --shadow-card: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px rgba(20, 23, 42, 0.06);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0D17;
+  --surface: #14172A;
+  --surface-glass: rgba(20, 23, 42, 0.6);
+  --border: rgba(255, 255, 255, 0.08);
+  --text-primary: #F5F5FA;
+  --text-secondary: #9297AE;
+
+  --accent: #7C5CFC;
+  --accent-soft: rgba(124, 92, 252, 0.16);
+
+  --risk-safe: #34D399;
+  --risk-watch: #FBBF24;
+  --risk-high: #F43F5E;
+
+  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  transition: background 0.3s ease, color 0.3s ease;
+  margin: 0;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+.pulse-orb {
+  animation: breathe 6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.4; }
+  50% { transform: scale(1.15) translate(20px, -20px); opacity: 0.6; }
+}

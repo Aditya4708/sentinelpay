@@ -1,0 +1,17 @@
+-- CreateEnum
+CREATE TYPE "RuleType" AS ENUM ('AMOUNT_THRESHOLD', 'TIME_WINDOW', 'NEW_DEVICE', 'IMPOSSIBLE_TRAVEL', 'MERCHANT_BLACKLIST', 'VELOCITY_CHECK', 'FAILED_ATTEMPTS', 'CUSTOM');
+
+-- CreateTable
+CREATE TABLE "FraudRule" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" "RuleType" NOT NULL,
+    "description" TEXT,
+    "config" JSONB NOT NULL,
+    "isEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "weight" DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FraudRule_pkey" PRIMARY KEY ("id")
+);
