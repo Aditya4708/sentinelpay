@@ -1,7 +1,18 @@
 const prisma = require("../config/prisma");
+const { parseVpa } = require("../services/scannerCore");
+
+// VPAs are stored trimmed and lowercased, the same form the scanner and transaction
+// scoring look them up by, so a report always reaches the payee it names.
+function normaliseVpa(raw) {
+  const parsed = parseVpa(raw);
+  return parsed.valid ? parsed.vpa : null;
+}
 
 async function getReputation(req, res) {
-  const { vpa } = req.params;
+  const vpa = normaliseVpa(req.params.vpa);
+  if (!vpa) {
+    return res.status(400).json({ error: "This is not a valid UPI address" });
+  }
 
   const record = await prisma.vpaReputation.findUnique({ where: { vpa } });
 
@@ -11,25 +22,38 @@ async function getReputation(req, res) {
   });
 }
 
+// Each account counts once per VPA. Reporting again only refreshes the label, so one
+// account cannot push a payee into the high-risk band on its own.
 async function reportVpa(req, res) {
-  const { vpa, label } = req.body;
-
+  const body = req.body || {};
+  const vpa = normaliseVpa(body.vpa);
   if (!vpa) {
-    return res.status(400).json({ error: "vpa is required" });
+    return res.status(400).json({ error: "vpa must be a valid UPI address, like name@bank" });
   }
+  const label = typeof body.label === "string" && body.label.trim() ? body.label.trim().slice(0, 100) : null;
+  const userId = req.user.userId;
 
-  const existing = await prisma.vpaReputation.findUnique({ where: { vpa } });
+  const result = await prisma.$transaction(async (tx) => {
+    const before = await tx.vpaReport.findUnique({ where: { vpa_userId: { vpa, userId } } });
+    await tx.vpaReport.upsert({
+      where: { vpa_userId: { vpa, userId } },
+      update: label ? { label } : {},
+      create: { vpa, userId, label },
+    });
+    const reportCount = await tx.vpaReport.count({ where: { vpa } });
+    const reputation = await tx.vpaReputation.upsert({
+      where: { vpa },
+      update: label ? { reportCount, lastLabel: label } : { reportCount },
+      create: { vpa, reportCount, lastLabel: label },
+    });
+    return { reputation, alreadyReported: !!before };
+  });
 
-  const updated = existing
-    ? await prisma.vpaReputation.update({
-        where: { vpa },
-        data: { reportCount: { increment: 1 }, lastLabel: label || existing.lastLabel },
-      })
-    : await prisma.vpaReputation.create({
-        data: { vpa, reportCount: 1, lastLabel: label || null },
-      });
-
-  return res.status(201).json({ vpa: updated.vpa, reportCount: updated.reportCount });
+  return res.status(result.alreadyReported ? 200 : 201).json({
+    vpa: result.reputation.vpa,
+    reportCount: result.reputation.reportCount,
+    alreadyReported: result.alreadyReported,
+  });
 }
 
-module.exports = { getReputation, reportVpa };
+module.exports = { getReputation, reportVpa, normaliseVpa };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardShell, { PageHeader } from "../components/DashboardShell";
-import RiskScore from "../components/RiskScore";
+import RiskScore, { isOpenFlag } from "../components/RiskScore";
 import api from "../services/api";
 
 interface FraudFlag {
@@ -9,6 +9,7 @@ interface FraudFlag {
   isFraudPredicted: boolean;
   humanReadableSummary: string | null;
   topFactors: { factor: string; impact: number }[];
+  reviewStatus?: string;
 }
 
 interface Transaction {
@@ -31,7 +32,7 @@ export default function AlertsPage() {
     api
       .get("/transactions/mine", { headers: { Authorization: "Bearer " + token } })
       .then((res) => {
-        const flagged = res.data.transactions.filter((t: Transaction) => t.fraudFlag?.isFraudPredicted);
+        const flagged = res.data.transactions.filter((t: Transaction) => isOpenFlag(t.fraudFlag));
         setAlerts(flagged);
       })
       .finally(() => setLoading(false));

@@ -35,6 +35,18 @@ app.use("/api/vpa", vpaRoutes);
 app.use("/api/cases", caseRoutes);
 app.use("/api/scanner", scannerRoutes);
 
+// Last stop for errors forwarded by asyncHandler (or thrown synchronously in a route),
+// so a failed query returns a 500 instead of hanging the request or crashing the process.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error("Unhandled route error:", req.method, req.originalUrl, err && err.message);
+  if (res.headersSent) return;
+  if (err && err.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Request body is not valid JSON" });
+  }
+  return res.status(500).json({ error: "Something went wrong on the server" });
+});
+
 app.listen(PORT, () => {
   console.log("SentinelPay backend listening on port " + PORT);
 });

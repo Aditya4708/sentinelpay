@@ -43,7 +43,34 @@ export async function updateProfile(payload: UpdateProfilePayload, token: string
   const res = await api.put("/auth/me", payload, {
     headers: { Authorization: "Bearer " + token },
   });
+  invalidateMe();
   return res.data;
+}
+
+// One shared GET /auth/me. The route guard, the shell and the page all ask for the
+// current user when a page mounts; they now share a single request. The result is kept
+// briefly, so values that change (like the risk score) are re-read on the next visit.
+const ME_TTL_MS = 5000;
+let meCache: { token: string; at: number; promise: Promise<{ user: any }> } | null = null;
+
+export function fetchMe(): Promise<{ user: any }> {
+  const token = localStorage.getItem("accessToken") || "";
+  if (meCache && meCache.token === token && Date.now() - meCache.at < ME_TTL_MS) {
+    return meCache.promise;
+  }
+  const promise = api
+    .get("/auth/me", { headers: { Authorization: "Bearer " + token } })
+    .then((res) => res.data)
+    .catch((err) => {
+      if (meCache && meCache.promise === promise) meCache = null;
+      throw err;
+    });
+  meCache = { token, at: Date.now(), promise };
+  return promise;
+}
+
+export function invalidateMe() {
+  meCache = null;
 }
 
 export default api;

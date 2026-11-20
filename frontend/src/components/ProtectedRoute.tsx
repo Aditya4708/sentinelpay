@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import api from "../services/api";
+import { fetchMe } from "../services/api";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<"checking" | "authed" | "guest">("checking");
@@ -12,8 +12,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       return;
     }
 
-    api
-      .get("/auth/me", { headers: { Authorization: "Bearer " + token } })
+    fetchMe()
       .then(() => setStatus("authed"))
       .catch(() => setStatus("guest"));
   }, []);

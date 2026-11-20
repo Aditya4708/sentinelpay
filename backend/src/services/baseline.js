@@ -1,24 +1,19 @@
 const prisma = require("../config/prisma");
-const { computeBaseline } = require("./baselineMath");
+const { computeBaseline, computeUserRiskScore } = require("./baselineMath");
 
 const HISTORY_LIMIT = 200;
 
+// Newest first. Each row carries the fields computeBaseline and computeUserRiskScore read.
 async function loadHistory(userId) {
   return prisma.transaction.findMany({
     where: { senderId: userId },
-    include: { fraudFlag: { select: { isFraudPredicted: true, reviewStatus: true } } },
+    include: { fraudFlag: { select: { isFraudPredicted: true, reviewStatus: true, riskScore: true } } },
     orderBy: { createdAt: "desc" },
     take: HISTORY_LIMIT,
   });
 }
 
-async function getBaseline(userId) {
-  const history = await loadHistory(userId);
-  return computeBaseline(history);
-}
-
-// Number of transactions this user made in the last hour. Used only when the caller
-// does not supply a velocity of its own.
+// Number of transactions this user made in the last hour.
 async function countRecentTransactions(userId, minutes) {
   const since = new Date(Date.now() - (minutes || 60) * 60 * 1000);
   return prisma.transaction.count({
@@ -26,10 +21,18 @@ async function countRecentTransactions(userId, minutes) {
   });
 }
 
-// Persists the learned baseline so it can be shown to admins and audited.
-async function refreshProfile(userId) {
-  const history = await loadHistory(userId);
-  const b = computeBaseline(history);
+// Recomputes the user's current risk score and, once there is enough clean history,
+// the stored behavioural profile. Pass `history` (newest first) when the caller already
+// has it, to avoid loading it again.
+async function refreshProfile(userId, history) {
+  const rows = history || (await loadHistory(userId));
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { currentRiskScore: computeUserRiskScore(rows) },
+  });
+
+  const b = computeBaseline(rows);
   if (b.source !== "learned") return null;
 
   const data = {
@@ -54,4 +57,4 @@ async function refreshProfile(userId) {
   });
 }
 
-module.exports = { getBaseline, countRecentTransactions, refreshProfile };
+module.exports = { loadHistory, countRecentTransactions, refreshProfile, HISTORY_LIMIT };

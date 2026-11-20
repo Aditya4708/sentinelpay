@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Pencil, Check, Loader2, Lock } from "lucide-react";
 import DashboardShell, { PageHeader } from "../components/DashboardShell";
-import api, { updateProfile } from "../services/api";
+import { fetchMe, updateProfile } from "../services/api";
 import { INDIAN_BANKS, UPI_APPS } from "../constants/indiaFinance";
 
 interface UserProfile {
@@ -69,16 +69,14 @@ export default function ProfilePage() {
   const [form, setForm] = useState({ name: "", phone: "", preferredBank: "", preferredApp: "" });
 
   function loadUser() {
-    const token = localStorage.getItem("accessToken");
-    api
-      .get("/auth/me", { headers: { Authorization: "Bearer " + token } })
-      .then((res) => {
-        setUser(res.data.user);
+    fetchMe()
+      .then((data) => {
+        setUser(data.user);
         setForm({
-          name: res.data.user.name,
-          phone: res.data.user.phone,
-          preferredBank: res.data.user.preferredBank || "",
-          preferredApp: res.data.user.preferredApp || "",
+          name: data.user.name,
+          phone: data.user.phone,
+          preferredBank: data.user.preferredBank || "",
+          preferredApp: data.user.preferredApp || "",
         });
       })
       .catch(() => navigate("/login"));

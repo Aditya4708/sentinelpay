@@ -120,4 +120,27 @@ function computeBaseline(transactions, now) {
   };
 }
 
-module.exports = { computeBaseline, isClean, median, percentile, DEFAULTS, MIN_HISTORY, MIN_HOURS_HISTORY };
+const RISK_WINDOW = 10;
+
+// The account's current risk score: a recency-weighted average of its last 10 scored
+// transactions (newest weighs most). An analyst's decision overrides the model:
+// confirmed fraud counts as 100 and a false positive as 0. Expects newest first.
+function computeUserRiskScore(transactions) {
+  const scored = (transactions || []).filter((t) => t.fraudFlag && typeof t.fraudFlag.riskScore === "number").slice(0, RISK_WINDOW);
+  if (scored.length === 0) return 0;
+
+  let weighted = 0;
+  let weights = 0;
+  scored.forEach((t, i) => {
+    const flag = t.fraudFlag;
+    let score = flag.riskScore;
+    if (flag.reviewStatus === "CONFIRMED_FRAUD") score = 100;
+    else if (flag.reviewStatus === "FALSE_POSITIVE") score = 0;
+    const w = RISK_WINDOW - i;
+    weighted += Math.max(0, Math.min(100, score)) * w;
+    weights += w;
+  });
+  return Math.round((weighted / weights) * 10) / 10;
+}
+
+module.exports = { computeBaseline, computeUserRiskScore, isClean, median, percentile, DEFAULTS, MIN_HISTORY, MIN_HOURS_HISTORY, RISK_WINDOW };

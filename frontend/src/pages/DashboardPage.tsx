@@ -4,9 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Zap } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import DashboardShell, { PageHeader } from "../components/DashboardShell";
-import RiskScore, { BandMarker, riskTone, BAND_COLOR } from "../components/RiskScore";
+import RiskScore, { BandMarker, riskTone, BAND_COLOR, isOpenFlag } from "../components/RiskScore";
 import RiskGauge, { CountUp, EASE } from "../components/RiskGauge";
-import api from "../services/api";
+import api, { fetchMe } from "../services/api";
 
 interface UserProfile {
   id: string;
@@ -20,6 +20,7 @@ interface UserProfile {
 interface FraudFlag {
   riskScore: number;
   isFraudPredicted: boolean;
+  reviewStatus?: string;
 }
 
 interface Transaction {
@@ -51,9 +52,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
-    api
-      .get("/auth/me", { headers: { Authorization: "Bearer " + token } })
-      .then((res) => setUser(res.data.user))
+    fetchMe()
+      .then((data) => setUser(data.user))
       .catch(() => navigate("/login"));
 
     api
@@ -63,7 +63,7 @@ export default function DashboardPage() {
   }, [navigate]);
 
   const recent = transactions.slice(0, 5);
-  const flaggedCount = transactions.filter((t) => t.fraudFlag?.isFraudPredicted).length;
+  const flaggedCount = transactions.filter((t) => isOpenFlag(t.fraudFlag)).length;
   const flagRate = transactions.length ? (flaggedCount / transactions.length) * 100 : 0;
 
   const chartData = transactions
@@ -84,7 +84,7 @@ export default function DashboardPage() {
     {
       label: "Flagged as fraud",
       value: <CountUp value={flaggedCount} />,
-      note: flaggedCount === 0 ? "Nothing flagged so far" : "Predicted by the model",
+      note: flaggedCount === 0 ? "Nothing flagged so far" : "Not cleared by an analyst",
       color: flaggedCount > 0 ? "var(--risk-high)" : "var(--text-primary)",
     },
     { label: "Flag rate", value: <><CountUp value={flagRate} />%</>, note: `${flaggedCount} of ${transactions.length} transactions`, color: "var(--text-primary)" },
@@ -128,7 +128,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <motion.div {...rise(1)} className="sp-card p-5 flex flex-col">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">Your risk score</p>
             <span className="inline-flex items-center gap-2 text-xs" style={{ color: tone.color }}>
               <BandMarker band={tone.band} />

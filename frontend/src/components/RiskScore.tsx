@@ -27,6 +27,11 @@ export function riskTone(score: number) {
   return { band, color: BAND_COLOR[band], label: BAND_LABEL[band], bg: BAND_SOFT[band] };
 }
 
+// A flag still counts as an alert unless an analyst has cleared it as a false positive.
+export function isOpenFlag(flag: { isFraudPredicted: boolean; reviewStatus?: string } | null | undefined) {
+  return !!flag && flag.isFraudPredicted && flag.reviewStatus !== "FALSE_POSITIVE";
+}
+
 const ORDER: RiskBand[] = ["safe", "watch", "high"];
 
 export function BandMarker({ band, size = "sm" }: { band: RiskBand; size?: "sm" | "md" }) {

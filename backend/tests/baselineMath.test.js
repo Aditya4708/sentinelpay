@@ -1,7 +1,7 @@
 // Unit tests for the behavioural-baseline maths (no database, no network).
 // Run with: node tests/baselineMath.test.js
 const assert = require("assert");
-const { computeBaseline, isClean, median, percentile } = require("../src/services/baselineMath");
+const { computeBaseline, computeUserRiskScore, isClean, median, percentile } = require("../src/services/baselineMath");
 
 const now = new Date("2026-10-10T12:00:00Z");
 const day = 86400000;
@@ -71,5 +71,17 @@ b = computeBaseline([
 ], now);
 assert.strictEqual(b.weeklySpend, 100);
 assert.strictEqual(b.monthlySpend, 300);
+
+// user risk score: recency-weighted, analyst decisions override the model
+const f = (riskScore, reviewStatus) => ({ fraudFlag: { riskScore, isFraudPredicted: riskScore >= 50, reviewStatus: reviewStatus || "PENDING" } });
+assert.strictEqual(computeUserRiskScore([]), 0);
+assert.strictEqual(computeUserRiskScore([{ fraudFlag: null }]), 0);
+assert.strictEqual(computeUserRiskScore([f(40)]), 40);
+// newest (weight 10) 100, older (weight 9) 0 -> 1000 / 19
+assert.strictEqual(computeUserRiskScore([f(100), f(0)]), 52.6);
+assert.strictEqual(computeUserRiskScore([f(90, "FALSE_POSITIVE")]), 0);
+assert.strictEqual(computeUserRiskScore([f(10, "CONFIRMED_FRAUD")]), 100);
+// only the last 10 count
+assert.strictEqual(computeUserRiskScore(Array(10).fill(f(20)).concat(Array(5).fill(f(100)))), 20);
 
 console.log("baselineMath: all tests passed");

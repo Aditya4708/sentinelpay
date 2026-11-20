@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import ThemeToggle, { ModeToggle, PalettePicker } from "./ThemeToggle";
 import PaymentFlowBackground from "./PaymentFlowBackground";
-import api from "../services/api";
+import { fetchMe, invalidateMe } from "../services/api";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
@@ -52,17 +52,16 @@ export default function DashboardShell({ active, children }: { active: string; c
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-    api
-      .get("/auth/me", { headers: { Authorization: "Bearer " + token } })
-      .then((res) => setIsAdmin(res.data.user.role === "ADMIN"))
+    if (!localStorage.getItem("accessToken")) return;
+    fetchMe()
+      .then((data) => setIsAdmin(data.user.role === "ADMIN"))
       .catch(() => {});
   }, []);
 
   function handleLogout() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    invalidateMe();
     navigate("/");
   }
 

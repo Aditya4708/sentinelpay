@@ -1,10 +1,26 @@
 const axios = require("axios");
 const prisma = require("../config/prisma");
 const { evaluateRules } = require("../services/ruleEngine");
-const { getBaseline, countRecentTransactions, refreshProfile } = require("../services/baseline");
+const { loadHistory, countRecentTransactions, refreshProfile, HISTORY_LIMIT } = require("../services/baseline");
+const { computeBaseline } = require("../services/baselineMath");
 const { scanTarget } = require("../services/scannerService");
+const { localParts } = require("../utils/clock");
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://ai-service:8000";
+
+// A transaction becomes a fraud case when the model flags it, when the combined score
+// reaches the high-risk band, or when the payee is rated critical. A rule hit on its own
+// adds to the score but does not open a case.
+const REVIEW_THRESHOLD = 50;
+
+// What-if controls (hour, velocity, location) let the simulator ask "what would this
+// score look like at 03:00?". They are client-supplied, so outside development they are
+// ignored unless ALLOW_WHAT_IF_OVERRIDES=true; the server then uses its own clock, the
+// observed velocity and the learned home location.
+const ALLOW_WHAT_IF =
+  process.env.ALLOW_WHAT_IF_OVERRIDES !== undefined
+    ? process.env.ALLOW_WHAT_IF_OVERRIDES === "true"
+    : process.env.NODE_ENV !== "production";
 
 const VALID_TYPES = [
   "P2P", "P2M", "QR_PAYMENT", "BILL_PAYMENT",
@@ -27,15 +43,21 @@ function reasonFor(rule, receiver) {
   return RULE_LABELS[rule] || rule.toLowerCase().replace(/_/g, " ");
 }
 
-// The AI service explains what the model saw. Rules and the payee check can flag a
-// transaction on their own, so the stored explanation has to say so too.
-function buildSummary(prediction, triggeredRules, receiver) {
+// The AI service explains what the model saw. Rules and the payee check also move the
+// score, so the stored explanation has to say what they did.
+function buildSummary(prediction, triggeredRules, receiver, flagged) {
   const reasons = triggeredRules.map((r) => reasonFor(r, receiver));
   if (reasons.length === 0) return prediction.human_readable_summary;
   if (prediction.is_fraud_predicted) {
     return prediction.human_readable_summary + " Rules also triggered: " + reasons.join(", ") + ".";
   }
-  return "Flagged by rules, not by the model: " + reasons.join(", ") + ".";
+  if (flagged) {
+    return "Flagged by rules, not by the model: " + reasons.join(", ") + ".";
+  }
+  return (
+    prediction.human_readable_summary +
+    " Rules triggered (" + reasons.join(", ") + "), but the combined score stayed below the review threshold."
+  );
 }
 
 // A payee the scanner rates HIGH or CRITICAL adds a quarter of its scanner score to the
@@ -43,11 +65,6 @@ function buildSummary(prediction, triggeredRules, receiver) {
 function receiverBoostFor(receiver) {
   if (!receiver || (receiver.riskLevel !== "HIGH" && receiver.riskLevel !== "CRITICAL")) return 0;
   return Math.round(receiver.riskScore / 4);
-}
-
-// JavaScript counts Sunday as 0, but the model was trained on Monday = 0.
-function toModelWeekday(date) {
-  return (date.getDay() + 6) % 7;
 }
 
 async function simulateTransaction(req, res) {
@@ -63,6 +80,7 @@ async function simulateTransaction(req, res) {
     return res.status(400).json({ error: "type must be one of: " + VALID_TYPES.join(", ") });
   }
   if (
+    ALLOW_WHAT_IF &&
     body.hourOfDay !== undefined &&
     !(Number.isInteger(body.hourOfDay) && body.hourOfDay >= 0 && body.hourOfDay <= 23)
   ) {
@@ -77,13 +95,15 @@ async function simulateTransaction(req, res) {
 
   try {
     // 1. What is normal for this user? Learned on the server from their own history,
-    //    never taken from the request.
-    const baseline = await getBaseline(userId);
+    //    never taken from the request. The history is reused after saving (step 7).
+    const history = await loadHistory(userId);
+    const baseline = computeBaseline(history);
 
     const now = new Date();
-    const hour = body.hourOfDay !== undefined ? body.hourOfDay : now.getHours();
-    const latitude = typeof body.latitude === "number" ? body.latitude : baseline.homeLat;
-    const longitude = typeof body.longitude === "number" ? body.longitude : baseline.homeLon;
+    const clock = localParts(now);
+    const hour = ALLOW_WHAT_IF && body.hourOfDay !== undefined ? body.hourOfDay : clock.hour;
+    const latitude = ALLOW_WHAT_IF && typeof body.latitude === "number" ? body.latitude : baseline.homeLat;
+    const longitude = ALLOW_WHAT_IF && typeof body.longitude === "number" ? body.longitude : baseline.homeLon;
 
     // 2. Is this device known? With too little history we cannot tell, so we do not
     //    penalise it (trust on first use).
@@ -100,11 +120,11 @@ async function simulateTransaction(req, res) {
       deviceStatus = "new";
     }
 
-    // 3. Velocity: the simulator can set it as a what-if control; any other caller
-    //    gets the real count of this user's transactions in the last hour.
+    // 3. Velocity: a what-if value when overrides are allowed, otherwise the real count
+    //    of this user's transactions in the last hour.
     let velocity;
     let velocitySource;
-    if (body.txnVelocity1h !== undefined && body.txnVelocity1h !== null) {
+    if (ALLOW_WHAT_IF && body.txnVelocity1h !== undefined && body.txnVelocity1h !== null) {
       velocity = Math.max(0, Math.round(Number(body.txnVelocity1h)) || 0);
       velocitySource = "simulated";
     } else {
@@ -130,7 +150,7 @@ async function simulateTransaction(req, res) {
       upi_app: upiApp,
       bank,
       hour_of_day: hour,
-      day_of_week: toModelWeekday(now),
+      day_of_week: clock.weekday,
       latitude,
       longitude,
       device_id: deviceId,
@@ -159,8 +179,11 @@ async function simulateTransaction(req, res) {
     const allTriggered = triggeredRules.concat(receiverRule);
 
     const combinedRiskScore = Math.round(Math.min(100, prediction.risk_score + ruleScoreBoost + receiverBoost) * 100) / 100;
-    const finalIsFraud = prediction.is_fraud_predicted || allTriggered.length > 0;
-    const summary = buildSummary(prediction, allTriggered, receiver);
+    const finalIsFraud =
+      prediction.is_fraud_predicted ||
+      combinedRiskScore >= REVIEW_THRESHOLD ||
+      (receiver !== null && receiver.riskLevel === "CRITICAL");
+    const summary = buildSummary(prediction, allTriggered, receiver, finalIsFraud);
 
     // 6. Persist the transaction and the explanation.
     const txnRef = "SIM" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
@@ -200,7 +223,10 @@ async function simulateTransaction(req, res) {
     // 7. Keep the stored behavioural profile current. A failure here must not
     //    fail the transaction itself.
     try {
-      await refreshProfile(userId);
+      const newRow = Object.assign({}, transaction, {
+        fraudFlag: { isFraudPredicted: finalIsFraud, reviewStatus: "PENDING", riskScore: combinedRiskScore },
+      });
+      await refreshProfile(userId, [newRow].concat(history).slice(0, HISTORY_LIMIT));
     } catch (profileErr) {
       console.error("Profile refresh failed:", profileErr.message);
     }
