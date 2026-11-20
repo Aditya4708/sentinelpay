@@ -76,6 +76,8 @@ model Transaction {
   deviceId         String
   os               String?
   ipAddress        String?
+  receiverVpa String?
+  hourOfDay Int?
   status           PaymentStatus   @default(PENDING)
   timestamp        DateTime        @default(now())
   createdAt        DateTime        @default(now())
@@ -85,6 +87,7 @@ model Transaction {
   @@index([senderId])
   @@index([timestamp])
   @@index([deviceId])
+  @@index([receiverVpa])
 }
 
 model FraudFlag {
@@ -99,9 +102,14 @@ model FraudFlag {
   shapValues           Json?
   humanReadableSummary String?
   triggeredRules       Json?
+  reviewStatus ReviewStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt DateTime?
+  reviewNotes String?
   createdAt            DateTime    @default(now())
 
   @@index([riskScore])
+  @@index([reviewStatus])
 }
 
 model BehaviorProfile {
@@ -114,6 +122,11 @@ model BehaviorProfile {
   monthlySpend            Float    @default(0)
   normalTxnHourStart      Int?
   normalTxnHourEnd        Int?
+  medianTransactionAmount Float @default(0)
+  homeLat Float?
+  homeLon Float?
+  knownDeviceIds Json?
+  txnCount Int @default(0)
   lastComputedAt          DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
@@ -140,4 +153,30 @@ model FraudRule {
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+model VpaReputation {
+  id          String   @id @default(uuid())
+  vpa         String   @unique
+  reportCount Int      @default(0)
+  lastLabel   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+enum ReviewStatus {
+  PENDING
+  CONFIRMED_FRAUD
+  FALSE_POSITIVE
+}
+
+model ScanLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  target    String
+  inputType String
+  riskScore Float
+  riskLevel String
+  signals   Json
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

@@ -8,6 +8,9 @@ const authRoutes = require("./routes/auth.routes");
 const transactionRoutes = require("./routes/transaction.routes");
 const adminRoutes = require("./routes/admin.routes");
 const ruleRoutes = require("./routes/rule.routes");
+const vpaRoutes = require("./routes/vpa.routes");
+const caseRoutes = require("./routes/case.routes");
+const scannerRoutes = require("./routes/scanner.routes");
 
 dotenv.config();
 
@@ -28,6 +31,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/rules", ruleRoutes);
+app.use("/api/vpa", vpaRoutes);
+app.use("/api/cases", caseRoutes);
+app.use("/api/scanner", scannerRoutes);
 
 app.listen(PORT, () => {
   console.log("SentinelPay backend listening on port " + PORT);

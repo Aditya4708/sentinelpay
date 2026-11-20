@@ -40,6 +40,40 @@ FRIENDLY_NAMES = {
 }
 
 
+# Features that describe the same idea are grouped, so each idea appears once in the
+# explanation. A group's impact is the sum of its features' SHAP values.
+FACTOR_GROUPS = {
+    "amount": "amount",
+    "amount_log": "amount",
+    "amount_vs_avg_ratio": "amount",
+    "hour_of_day": "time",
+    "is_odd_hour": "time",
+    "is_new_city": "location",
+    "distance_from_home_km": "location",
+    "is_new_device": "device",
+    "txn_velocity_1h": "velocity",
+    "is_suspicious_merchant": "merchant",
+    "day_of_week": "weekday",
+}
+
+# (label when the group pushed the risk up, label when it pushed the risk down)
+GROUP_LABELS = {
+    "amount": ("Unusually large amount", "Normal amount for this user"),
+    "time": ("Unusual time of day", "Usual time of day"),
+    "location": ("Unusual location", "Usual location"),
+    "device": ("New device", "Usual device"),
+    "velocity": ("Rapid transaction frequency", "Normal transaction frequency"),
+    "merchant": ("Suspicious merchant", "Ordinary merchant"),
+    "weekday": ("Day of the week", "Day of the week"),
+}
+
+
+def describe_factor(group, impact):
+    """A plain-English label that says which way the group moved the score."""
+    raises, lowers = GROUP_LABELS.get(group, (group, group))
+    return raises if impact > 0 else lowers
+
+
 class FraudPredictor:
     def __init__(self, model_path="models/random_forest.joblib", features_path="models/feature_columns.json"):
         self.model = joblib.load(model_path)
@@ -78,10 +112,12 @@ class FraudPredictor:
         return np.array([[row[c] for c in self.feature_cols]]), row
 
     def _human_summary(self, top_factors, is_fraud):
-        if not is_fraud:
-            return "Transaction appears consistent with the user's normal behavior."
-        factor_names = [f.factor for f in top_factors[:3]]
-        return "Flagged due to: " + ", ".join(factor_names) + "."
+        raising = [f.factor for f in top_factors if f.impact > 0][:3]
+        if is_fraud:
+            if raising:
+                return "Flagged due to: " + ", ".join(raising) + "."
+            return "Flagged by the model, but no single factor stands out."
+        return "Transaction appears consistent with the user's normal behavior."
 
     def predict(self, req: PredictionRequest) -> PredictionResponse:
         X, row = self._build_feature_vector(req)
@@ -106,9 +142,15 @@ class FraudPredictor:
         impacts = list(zip(self.feature_cols, fraud_shap))
         impacts.sort(key=lambda x: abs(x[1]), reverse=True)
 
+        grouped = {}
+        for name, val in impacts:
+            group = FACTOR_GROUPS.get(name, name)
+            grouped[group] = grouped.get(group, 0.0) + float(val)
+
+        ranked = sorted(grouped.items(), key=lambda item: abs(item[1]), reverse=True)
         top_factors = [
-            TopFactor(factor=FRIENDLY_NAMES.get(name, name), impact=round(float(val), 4))
-            for name, val in impacts[:5]
+            TopFactor(factor=describe_factor(group, value), impact=round(value, 4))
+            for group, value in ranked[:5]
         ]
 
         summary = self._human_summary(top_factors, is_fraud)

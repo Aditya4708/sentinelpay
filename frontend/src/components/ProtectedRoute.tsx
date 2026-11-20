@@ -21,7 +21,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   if (status === "checking") {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)", color: "var(--text-secondary)" }}>
-        Loading...
+        Loading
       </div>
     );
   }

@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { ShieldCheck, ShieldAlert, ArrowUpRight, Zap, Receipt } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import DashboardShell from "../components/DashboardShell";
+import { ArrowRight, Zap } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
+import DashboardShell, { PageHeader } from "../components/DashboardShell";
+import RiskScore, { BandMarker, riskTone, BAND_COLOR } from "../components/RiskScore";
+import RiskGauge, { CountUp, EASE } from "../components/RiskGauge";
 import api from "../services/api";
 
 interface UserProfile {
@@ -29,6 +32,17 @@ interface Transaction {
   fraudFlag: FraudFlag | null;
 }
 
+const rise = (i: number) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4, delay: Math.min(i, 5) * 0.05, ease: EASE },
+});
+
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+const inr = (n: number) => "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+/* ---------- Page ---------- */
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -48,135 +62,173 @@ export default function DashboardPage() {
       .finally(() => setLoadingTxns(false));
   }, [navigate]);
 
-  const firstName = user?.name?.split(" ")[0] || "there";
   const recent = transactions.slice(0, 5);
   const flaggedCount = transactions.filter((t) => t.fraudFlag?.isFraudPredicted).length;
+  const flagRate = transactions.length ? (flaggedCount / transactions.length) * 100 : 0;
 
   const chartData = transactions
     .slice(0, 10)
     .reverse()
-    .map((t, i) => ({
-      name: "Txn " + (i + 1),
+    .map((t) => ({
+      date: shortDate(t.timestamp),
+      ref: t.txnRef,
+      amount: t.amount,
       risk: t.fraudFlag?.riskScore ?? 0,
     }));
 
+  const score = user ? user.currentRiskScore : 0;
+  const tone = riskTone(score);
+
+  const stats = [
+    { label: "Transactions", value: <CountUp value={transactions.length} />, note: "All time", color: "var(--text-primary)" },
+    {
+      label: "Flagged as fraud",
+      value: <CountUp value={flaggedCount} />,
+      note: flaggedCount === 0 ? "Nothing flagged so far" : "Predicted by the model",
+      color: flaggedCount > 0 ? "var(--risk-high)" : "var(--text-primary)",
+    },
+    { label: "Flag rate", value: <><CountUp value={flagRate} />%</>, note: `${flaggedCount} of ${transactions.length} transactions`, color: "var(--text-primary)" },
+  ];
+
   return (
     <DashboardShell active="Dashboard">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 className="font-display font-semibold text-xl sm:text-2xl" style={{ color: "var(--text-primary)" }}>
-            Welcome, {firstName}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            Here's your transaction risk overview
-          </p>
-        </div>
-        <Link to="/simulator" className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
-          <Zap size={14} />
-          Simulate Transaction
-        </Link>
-      </div>
+      <PageHeader
+        title="Overview"
+        meta={
+          user ? (
+            <>
+              {user.name} <span style={{ color: "var(--text-muted)" }}>·</span> <span className="font-mono">{user.upiId}</span>
+            </>
+          ) : (
+            "Loading account"
+          )
+        }
+        actions={
+          <>
+            <Link to="/transactions" className="sp-btn sp-btn-secondary">
+              All transactions
+            </Link>
+            <Link to="/simulator" className="sp-btn sp-btn-primary">
+              <Zap size={16} strokeWidth={1.5} />
+              Simulate transaction
+            </Link>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="p-5 rounded-2xl border" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-          <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Current Risk Score</p>
-          <p className="font-mono font-semibold text-2xl" style={{ color: "var(--risk-safe)" }}>
-            {user ? user.currentRiskScore.toFixed(1) : "--"}
-          </p>
-        </div>
-        <div className="p-5 rounded-2xl border" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-          <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Total Transactions</p>
-          <p className="font-mono font-semibold text-2xl" style={{ color: "var(--text-primary)" }}>
-            {transactions.length}
-          </p>
-        </div>
-        <div className="p-5 rounded-2xl border" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-          <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Flagged</p>
-          <p className="font-mono font-semibold text-2xl" style={{ color: flaggedCount > 0 ? "var(--risk-high)" : "var(--risk-safe)" }}>
-            {flaggedCount}
-          </p>
-        </div>
-        <div className="p-5 rounded-2xl border" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-          <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>UPI ID</p>
-          <p className="font-mono font-semibold text-sm break-all" style={{ color: "var(--text-primary)" }}>
-            {user ? user.upiId : "--"}
-          </p>
-        </div>
-      </div>
+      <motion.div {...rise(0)} className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        {stats.map((s) => (
+          <div key={s.label} className="sp-card p-5">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{s.label}</p>
+            <p className="font-mono font-medium mt-3" style={{ fontSize: 28, lineHeight: 1, color: s.color }}>{s.value}</p>
+            <p className="sp-label mt-3">{s.note}</p>
+          </div>
+        ))}
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className="lg:col-span-2 p-5 rounded-2xl border" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Risk Score Trend</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <motion.div {...rise(1)} className="sp-card p-5 flex flex-col">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Your risk score</p>
+            <span className="inline-flex items-center gap-2 text-xs" style={{ color: tone.color }}>
+              <BandMarker band={tone.band} />
+              {user ? tone.label : ""}
+            </span>
+          </div>
+          <div className="flex-1 flex items-center py-4">
+            <RiskGauge score={score} ready={!!user} />
+          </div>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Every score is explained, so you always know why a payment was flagged
+          </p>
+        </motion.div>
+
+        <motion.div {...rise(2)} className="lg:col-span-2 sp-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium">Risk score trend</p>
+            <span className="sp-label">Last {chartData.length} transactions</span>
+          </div>
           {chartData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center">
+            <div className="h-[296px] flex items-center justify-center">
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                No data yet. <Link to="/simulator" style={{ color: "var(--accent)", fontWeight: 600 }}>Run a simulation</Link> to see your trend.
+                No data yet. <Link to="/simulator" style={{ color: "var(--accent)" }}>Run a simulation</Link> to see your trend
               </p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "12px" }} />
-                <Line type="monotone" dataKey="risk" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3 }} />
+            <ResponsiveContainer width="100%" height={296}>
+              <LineChart data={chartData} margin={{ top: 8, right: 48, left: -16, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--text-muted)", fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} dy={8} />
+                <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={{ fontSize: 11, fill: "var(--text-muted)", fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
+                <ReferenceLine y={25} stroke={BAND_COLOR.watch} strokeOpacity={0.4} strokeDasharray="3 4" label={{ value: "Watch", position: "right", fontSize: 11, fill: "var(--text-muted)" }} />
+                <ReferenceLine y={50} stroke={BAND_COLOR.high} strokeOpacity={0.4} strokeDasharray="3 4" label={{ value: "High", position: "right", fontSize: 11, fill: "var(--text-muted)" }} />
+                <Tooltip
+                  cursor={{ stroke: "var(--border-strong)" }}
+                  contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, color: "var(--text-primary)" }}
+                  labelStyle={{ color: "var(--text-muted)" }}
+                  formatter={(v: number, _n, p) => [`${v} · ${inr(p.payload.amount)}`, p.payload.ref]}
+                />
+                <Line type="monotoneX" dataKey="risk" stroke="var(--accent)" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0, fill: "var(--accent)" }} animationDuration={600} />
               </LineChart>
             </ResponsiveContainer>
           )}
-        </div>
-
-        <div className="p-5 rounded-2xl border flex flex-col gap-3" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Quick Actions</p>
-          <Link to="/simulator" className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium" style={{ background: "var(--bg)", color: "var(--text-primary)" }}>
-            Run a simulation
-            <ArrowUpRight size={14} />
-          </Link>
-          <Link to="/transactions" className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium" style={{ background: "var(--bg)", color: "var(--text-primary)" }}>
-            View all transactions
-            <ArrowUpRight size={14} />
-          </Link>
-          <Link to="/alerts" className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium" style={{ background: "var(--bg)", color: "var(--text-primary)" }}>
-            Check risk alerts
-            <ArrowUpRight size={14} />
-          </Link>
-        </div>
+        </motion.div>
       </div>
 
-      <div className="rounded-2xl border" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Recent Activity</p>
-          <Link to="/transactions" className="text-xs font-medium" style={{ color: "var(--accent)" }}>View all</Link>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <motion.div {...rise(3)} className="lg:col-span-2 sp-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 h-14">
+            <p className="text-sm font-medium">Recent activity</p>
+            <Link to="/transactions" className="text-sm" style={{ color: "var(--accent)" }}>View all</Link>
+          </div>
 
-        {loadingTxns ? (
-          <p className="px-5 pb-5 text-sm" style={{ color: "var(--text-secondary)" }}>Loading...</p>
-        ) : recent.length === 0 ? (
-          <div className="px-5 pb-6">
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              No transactions yet. <Link to="/simulator" style={{ color: "var(--accent)", fontWeight: 600 }}>Run your first simulation</Link>.
+          {loadingTxns ? (
+            <p className="px-5 pb-5 text-sm" style={{ color: "var(--text-secondary)" }}>Loading</p>
+          ) : recent.length === 0 ? (
+            <p className="px-5 pb-5 text-sm" style={{ color: "var(--text-secondary)" }}>
+              No transactions yet. <Link to="/simulator" style={{ color: "var(--accent)" }}>Run your first simulation</Link>
             </p>
-          </div>
-        ) : (
-          <div className="flex flex-col">
-            {recent.map((txn) => (
-              <div key={txn.id} className="flex items-center gap-3 px-5 py-3 border-t" style={{ borderColor: "var(--border)" }}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: txn.fraudFlag?.isFraudPredicted ? "rgba(244, 63, 94, 0.12)" : "var(--accent-soft)" }}>
-                  {txn.fraudFlag?.isFraudPredicted ? <ShieldAlert size={14} color="var(--risk-high)" /> : <ShieldCheck size={14} color="var(--risk-safe)" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-mono truncate" style={{ color: "var(--text-primary)" }}>{txn.txnRef}</p>
-                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{txn.upiApp} - {new Date(txn.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
-                </div>
-                <p className="font-mono text-sm flex-shrink-0" style={{ color: "var(--text-primary)" }}>{"\u20B9"}{txn.amount.toLocaleString("en-IN")}</p>
-                {txn.fraudFlag && (
-                  <p className="font-mono text-xs flex-shrink-0 w-14 text-right" style={{ color: txn.fraudFlag.isFraudPredicted ? "var(--risk-high)" : "var(--risk-safe)" }}>
-                    {txn.fraudFlag.riskScore}%
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="sp-label text-left border-t" style={{ borderColor: "var(--border)" }}>
+                  <th className="font-normal px-5 h-9">Reference</th>
+                  <th className="font-normal px-3 h-9 hidden md:table-cell">App</th>
+                  <th className="font-normal px-3 h-9 hidden sm:table-cell">Date</th>
+                  <th className="font-normal px-3 h-9 text-right">Amount</th>
+                  <th className="font-normal px-5 h-9 text-right">Risk</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((txn) => (
+                  <tr key={txn.id} className="sp-row border-t" style={{ borderColor: "var(--border)" }}>
+                    <td className="px-5 h-11 font-mono truncate max-w-[180px]">{txn.txnRef}</td>
+                    <td className="px-3 h-11 hidden md:table-cell whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{txn.upiApp}</td>
+                    <td className="px-3 h-11 hidden sm:table-cell font-mono whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{shortDate(txn.timestamp)}</td>
+                    <td className="px-3 h-11 text-right font-mono">{inr(txn.amount)}</td>
+                    <td className="px-5 h-11 text-right">
+                      {txn.fraudFlag ? <RiskScore score={txn.fraudFlag.riskScore} /> : <span style={{ color: "var(--text-muted)" }}>Not scored</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </motion.div>
+
+        <motion.div {...rise(4)} className="sp-card p-2 self-start">
+          <p className="text-sm font-medium px-3 h-10 flex items-center">Quick actions</p>
+          {[
+            { to: "/simulator", label: "Run a simulation" },
+            { to: "/transactions", label: "View all transactions" },
+            { to: "/alerts", label: "Check risk alerts" },
+          ].map((a) => (
+            <Link key={a.to} to={a.to} className="sp-row flex items-center justify-between px-3 h-10 rounded-lg text-sm" style={{ color: "var(--text-secondary)" }}>
+              {a.label}
+              <ArrowRight size={16} strokeWidth={1.5} color="var(--text-muted)" />
+            </Link>
+          ))}
+        </motion.div>
       </div>
     </DashboardShell>
   );

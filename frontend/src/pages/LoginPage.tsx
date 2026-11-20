@@ -1,7 +1,8 @@
 import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import AuthLayout from "../components/AuthLayout";
+import AuthLayout, { AuthField } from "../components/AuthLayout";
+import PasswordInput from "../components/PasswordInput";
 import { loginUser } from "../services/api";
 
 export default function LoginPage() {
@@ -21,54 +22,37 @@ export default function LoginPage() {
       localStorage.setItem("refreshToken", data.refreshToken);
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed. Check your credentials.");
+      setError(err.response?.data?.error || "Login failed. Check your email and password");
     } finally {
       setLoading(false);
     }
   }
 
-  const inputStyle = {
-    width: "100%",
-    padding: "12px 16px",
-    borderRadius: "12px",
-    border: "1px solid var(--border)",
-    background: "var(--bg)",
-    color: "var(--text-primary)",
-    fontSize: "14px",
-    outline: "none",
-  };
 
   return (
-    <AuthLayout title="Welcome back" subtitle="Log in to your RiskLens dashboard">
+    <AuthLayout title="Log in" subtitle="Your payments, scored and explained">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-secondary)" }}>Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} placeholder="you@example.com" />
-        </div>
-        <div>
-          <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--text-secondary)" }}>Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={inputStyle} placeholder="********" />
-        </div>
+        <AuthField label="Email">
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="sp-input" placeholder="you@example.com" />
+        </AuthField>
+        <AuthField label="Password">
+          <PasswordInput value={password} onChange={setPassword} required  />
+        </AuthField>
 
         {error && (
-          <p className="text-sm px-3 py-2 rounded-lg" style={{ color: "var(--risk-high)", background: "rgba(244, 63, 94, 0.1)" }}>
+          <p className="text-sm px-3 py-2 rounded-lg" style={{ color: "var(--risk-high)", background: "var(--risk-high-soft)" }}>
             {error}
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-2"
-          style={{ background: "var(--accent)", color: "#fff", opacity: loading ? 0.7 : 1 }}
-        >
-          {loading && <Loader2 size={16} className="animate-spin" />}
-          {loading ? "Logging in..." : "Log In"}
+        <button type="submit" disabled={loading} className="sp-btn sp-btn-primary sp-btn-lg w-full mt-2">
+          {loading && <Loader2 size={16} strokeWidth={1.5} className="animate-spin" />}
+          {loading ? "Logging in" : "Log in"}
         </button>
       </form>
 
-      <p className="text-sm text-center mt-6" style={{ color: "var(--text-secondary)" }}>
-        Don't have an account? <Link to="/signup" style={{ color: "var(--accent)", fontWeight: 600 }}>Sign up</Link>
+      <p className="text-sm mt-6" style={{ color: "var(--text-secondary)" }}>
+        Don't have an account? <Link to="/signup" style={{ color: "var(--accent)" }}>Sign up</Link>
       </p>
     </AuthLayout>
   );

@@ -35,6 +35,9 @@ FRAUD_TYPES = [
     "IMPOSSIBLE_TRAVEL",
     "RAPID_SUCCESSION",
     "BLACKLISTED_MERCHANT",
+    "MULE_NETWORK",
 ]
+
+MULE_DEVICE_IDS = ["dev-mule" + str(i).zfill(3) for i in range(6)]
 
 BLACKLISTED_MERCHANTS = ["QuickCash Traders", "InstaLoan Direct", "FastForex Exchange", "WinBig Rewards"]

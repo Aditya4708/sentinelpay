@@ -2,52 +2,150 @@
 @tailwind components;
 @tailwind utilities;
 
-/* RiskLens AI - Design Tokens
-   Light mode = default for landing/marketing pages
-   Dark mode = default for the product dashboard
-   Toggle via [data-theme="dark"] or [data-theme="light"] on <html> */
+/* SentinelPay design tokens
+   Direction: a risk desk on the night shift. Ink-tinted neutrals, one sky-blue accent,
+   mono figures. Dark is the default; light is the same system inverted.
+   Toggle via [data-theme="dark"] or [data-theme="light"] on <html>. */
 
 :root {
-  /* ---- Light mode (default) ---- */
-  --bg: #F7F7FB;
-  --surface: #FFFFFF;
-  --surface-glass: rgba(255, 255, 255, 0.7);
-  --border: #E7E7F0;
-  --text-primary: #14172A;
-  --text-secondary: #6B7089;
+  /* ---- Light (ink ramp) ---- */
+  --bg-deep: #eceff4;
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-raised: #eceff4;
+  --surface-glass: #ffffff;
+  --border: rgba(17, 24, 39, 0.08);
+  --border-strong: rgba(17, 24, 39, 0.14);
+  --text-primary: #111827;
+  --text-secondary: #4b5565;
+  --text-muted: #6b7487;
 
-  --accent: #6D4FEA;
-  --accent-soft: rgba(109, 79, 234, 0.12);
+  --accent: #1d6fe0;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(29, 111, 224, 0.08);
 
-  --risk-safe: #10B981;
-  --risk-watch: #F59E0B;
-  --risk-high: #E11D48;
+  --risk-safe: #15803d;
+  --risk-watch: #b45309;
+  --risk-high: #dc2626;
+  --risk-safe-soft: rgba(21, 128, 61, 0.08);
+  --risk-watch-soft: rgba(180, 83, 9, 0.08);
+  --risk-high-soft: rgba(220, 38, 38, 0.08);
 
-  --font-display: "Space Grotesk", sans-serif;
-  --font-body: "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --shadow-soft: 0 8px 30px rgba(20, 23, 42, 0.08);
-  --shadow-card: 0 1px 2px rgba(20, 23, 42, 0.04), 0 8px 24px rgba(20, 23, 42, 0.06);
+  --shadow-soft: 0 8px 24px rgba(17, 24, 39, 0.06);
+  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.05);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: light;
 }
 
 [data-theme="dark"] {
-  --bg: #0B0D17;
-  --surface: #14172A;
-  --surface-glass: rgba(20, 23, 42, 0.6);
-  --border: rgba(255, 255, 255, 0.08);
-  --text-primary: #F5F5FA;
-  --text-secondary: #9297AE;
+  /* ---- Dark (ink ramp) ---- */
+  --bg-deep: #07080d;
+  --bg: #0b0d14;
+  --surface: #11141c;
+  --surface-raised: #1a1e28;
+  --surface-glass: #11141c;
+  --border: rgba(238, 240, 245, 0.08);
+  --border-strong: rgba(238, 240, 245, 0.14);
+  --text-primary: #eef0f5;
+  --text-secondary: #a3a9b8;
+  --text-muted: #7a8296;
 
-  --accent: #7C5CFC;
-  --accent-soft: rgba(124, 92, 252, 0.16);
+  --accent: #4da3ff;
+  --accent-ink: #07080d;
+  --accent-soft: rgba(77, 163, 255, 0.1);
 
-  --risk-safe: #34D399;
-  --risk-watch: #FBBF24;
-  --risk-high: #F43F5E;
+  --risk-safe: #4cc38a;
+  --risk-watch: #e5a83b;
+  --risk-high: #e5484d;
+  --risk-safe-soft: rgba(76, 195, 138, 0.1);
+  --risk-watch-soft: rgba(229, 168, 59, 0.1);
+  --risk-high-soft: rgba(229, 72, 77, 0.1);
 
-  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-card: none;
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color-scheme: dark;
+}
+
+/* ---- Colourways ----
+   Ink (above) is the default. Graphite and Paper override neutrals and the accent.
+   Risk colours stay semantic in every colourway; Paper nudges "watch" toward ochre
+   so it never reads as the copper accent. */
+
+:root[data-palette="graphite"]:not([data-theme="dark"]) {
+  --bg-deep: #f4f4f5;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f5;
+  --surface-glass: #ffffff;
+  --border: rgba(23, 23, 23, 0.08);
+  --border-strong: rgba(23, 23, 23, 0.14);
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --accent: #0e7490;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(14, 116, 144, 0.08);
+}
+
+:root[data-palette="graphite"][data-theme="dark"] {
+  --bg-deep: #0f0f10;
+  --bg: #141415;
+  --surface: #19191b;
+  --surface-raised: #232325;
+  --surface-glass: #19191b;
+  --border: rgba(237, 237, 237, 0.08);
+  --border-strong: rgba(237, 237, 237, 0.14);
+  --text-primary: #ededed;
+  --text-secondary: #a1a1a6;
+  --text-muted: #85858b;
+  --accent: #3cc6d4;
+  --accent-ink: #0f0f10;
+  --accent-soft: rgba(60, 198, 212, 0.1);
+}
+
+:root[data-palette="paper"]:not([data-theme="dark"]) {
+  --bg-deep: #efe9df;
+  --bg: #f7f4ee;
+  --surface: #fdfbf7;
+  --surface-raised: #efe9df;
+  --surface-glass: #fdfbf7;
+  --border: rgba(31, 27, 22, 0.08);
+  --border-strong: rgba(31, 27, 22, 0.14);
+  --text-primary: #1f1b16;
+  --text-secondary: #5e554a;
+  --text-muted: #7b7266;
+  --accent: #b4532a;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(180, 83, 42, 0.08);
+  --risk-watch: #a16207;
+  --risk-watch-soft: rgba(161, 98, 7, 0.08);
+  --shadow-soft: 0 8px 24px rgba(31, 27, 22, 0.06);
+  --shadow-card: 0 1px 2px rgba(31, 27, 22, 0.05);
+}
+
+:root[data-palette="paper"][data-theme="dark"] {
+  --bg-deep: #12110f;
+  --bg: #161513;
+  --surface: #1c1a18;
+  --surface-raised: #262421;
+  --surface-glass: #1c1a18;
+  --border: rgba(239, 233, 222, 0.08);
+  --border-strong: rgba(239, 233, 222, 0.14);
+  --text-primary: #efe9de;
+  --text-secondary: #aaa398;
+  --text-muted: #8a847a;
+  --accent: #e0875a;
+  --accent-ink: #12110f;
+  --accent-soft: rgba(224, 135, 90, 0.1);
+  --risk-watch: #e3c04a;
+  --risk-watch-soft: rgba(227, 192, 74, 0.1);
 }
 
 * {
@@ -58,8 +156,10 @@ body {
   background: var(--bg);
   color: var(--text-primary);
   font-family: var(--font-body);
-  transition: background 0.3s ease, color 0.3s ease;
+  font-size: 14px;
+  line-height: 20px;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
 .font-display {
@@ -68,12 +168,130 @@ body {
 
 .font-mono {
   font-family: var(--font-mono);
-}
-.pulse-orb {
-  animation: breathe 6s ease-in-out infinite;
+  font-variant-numeric: tabular-nums;
 }
 
-@keyframes breathe {
-  0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.4; }
-  50% { transform: scale(1.15) translate(20px, -20px); opacity: 0.6; }
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---- Shared building blocks ---- */
+
+.sp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.sp-label {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-muted);
+}
+
+.sp-title {
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.sp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms var(--ease), border-color 150ms var(--ease), color 150ms var(--ease), transform 120ms var(--ease), opacity 150ms var(--ease);
+}
+.sp-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.sp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sp-btn-lg {
+  height: 44px;
+  padding: 0 20px;
+}
+.sp-btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--highlight);
+}
+.sp-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.sp-btn-secondary {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+.sp-btn-secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+.sp-btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.sp-btn-ghost:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.sp-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  outline: none;
+  transition: border-color 150ms var(--ease);
+}
+.sp-input:focus {
+  border-color: var(--accent);
+}
+.sp-input::placeholder {
+  color: var(--text-muted);
+}
+
+.sp-row {
+  transition: background-color 150ms var(--ease);
+}
+.sp-row:hover {
+  background: var(--surface-raised);
+}
+
+/* Leaflet sits inside our surfaces */
+.leaflet-container {
+  background: var(--surface-raised) !important;
+  font-family: var(--font-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

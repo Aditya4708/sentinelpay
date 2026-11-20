@@ -20,7 +20,7 @@ from faker import Faker
 
 from data_config import (
     CITIES, BANKS, UPI_APPS, MERCHANT_CATEGORIES, DEVICE_OS,
-    FRAUD_TYPES, BLACKLISTED_MERCHANTS,
+    FRAUD_TYPES, BLACKLISTED_MERCHANTS, MULE_DEVICE_IDS,
 )
 
 fake = Faker("en_IN")
@@ -146,6 +146,14 @@ def inject_fraud(user, base_txn, fraud_type):
         txn["merchant_name"] = random.choice(BLACKLISTED_MERCHANTS)
         txn["type"] = "MERCHANT_PAYMENT"
         txn["amount"] = round(user["avg_amount"] * random.uniform(2, 6), 2)
+
+    elif fraud_type == "MULE_NETWORK":
+        # Deliberately reuses one of a small pool of device IDs across many
+        # different victim accounts - the real signature of a mule-account
+        # fraud ring, and a signal a per-transaction model cannot see alone.
+        txn["device_id"] = random.choice(MULE_DEVICE_IDS)
+        txn["os"] = random.choice(DEVICE_OS)
+        txn["amount"] = round(user["avg_amount"] * random.uniform(1.5, 4), 2)
 
     # RAPID_SUCCESSION handled separately as a burst, not a single-txn mutation
 

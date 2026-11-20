@@ -8,7 +8,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "test": "node tests/baselineMath.test.js && node tests/scannerCore.test.js"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

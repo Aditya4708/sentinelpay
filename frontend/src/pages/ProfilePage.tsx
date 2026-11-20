@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Mail, Phone, CreditCard, Building2, Smartphone, Calendar, BadgeCheck, Pencil, Check, X, Loader2 } from "lucide-react";
-import DashboardShell from "../components/DashboardShell";
+import { Pencil, Check, Loader2, Lock } from "lucide-react";
+import DashboardShell, { PageHeader } from "../components/DashboardShell";
 import api, { updateProfile } from "../services/api";
 import { INDIAN_BANKS, UPI_APPS } from "../constants/indiaFinance";
 
@@ -18,49 +18,42 @@ interface UserProfile {
   createdAt: string;
 }
 
-const inputStyle = {
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  border: "1px solid var(--border)",
-  background: "var(--bg)",
-  color: "var(--text-primary)",
-  fontSize: "13px",
-  outline: "none",
-  fontFamily: "var(--font-mono)",
-};
-
 function EditableRow({
-  icon: Icon, label, value, editable, editing, onChange, options,
+  label,
+  value,
+  editable,
+  editing,
+  onChange,
+  options,
+  mono = false,
 }: {
-  icon: any; label: string; value: string; editable: boolean; editing: boolean; onChange?: (v: string) => void; options?: string[];
+  label: string;
+  value: string;
+  editable: boolean;
+  editing: boolean;
+  onChange?: (v: string) => void;
+  options?: string[];
+  mono?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-4 py-4 border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>
-      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-soft)" }}>
-        <Icon size={16} color="var(--accent)" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>{label}</p>
-        {editing && editable ? (
-          options ? (
-            <select value={value} onChange={(e) => onChange && onChange(e.target.value)} style={inputStyle}>
-              <option value="">Select {label}</option>
-              {options.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          ) : (
-            <input value={value} onChange={(e) => onChange && onChange(e.target.value)} style={inputStyle} />
-          )
+    <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] items-center gap-2 sm:gap-6 px-5 py-3 min-h-[56px] border-t first:border-t-0" style={{ borderColor: "var(--border)" }}>
+      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{label}</p>
+      {editing && editable ? (
+        options ? (
+          <select value={value} onChange={(e) => onChange && onChange(e.target.value)} className="sp-input">
+            <option value="">Select {label.toLowerCase()}</option>
+            {options.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
         ) : (
-          <p className="font-mono text-sm break-all" style={{ color: "var(--text-primary)" }}>{value || "Not set"}</p>
-        )}
-      </div>
-      {editing && !editable && (
-        <span className="text-[10px] px-2 py-1 rounded-full flex-shrink-0" style={{ background: "var(--border)", color: "var(--text-secondary)" }}>
-          locked
-        </span>
+          <input value={value} onChange={(e) => onChange && onChange(e.target.value)} className="sp-input" />
+        )
+      ) : (
+        <p className={"text-sm break-all flex items-center gap-2 " + (mono ? "font-mono" : "")} style={{ color: value ? "var(--text-primary)" : "var(--text-muted)" }}>
+          {value || "Not set"}
+          {editing && !editable && <Lock size={14} strokeWidth={1.5} color="var(--text-muted)" aria-label="Locked" />}
+        </p>
       )}
     </div>
   );
@@ -106,7 +99,7 @@ export default function ProfilePage() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to save changes.");
+      setError(err.response?.data?.error || "Could not save changes");
     } finally {
       setSaving(false);
     }
@@ -127,66 +120,56 @@ export default function ProfilePage() {
 
   return (
     <DashboardShell active="Settings">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 className="font-display font-semibold text-xl sm:text-2xl" style={{ color: "var(--text-primary)" }}>
-            Account Details
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            This is exactly what's stored in the database for your account
-          </p>
-        </div>
-        {!editing && user && (
-          <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff" }}>
-            <Pencil size={14} />
-            Edit
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Account"
+        meta="Exactly what's stored for your account"
+        actions={
+          !user ? null : editing ? (
+            <>
+              <button onClick={handleCancel} disabled={saving} className="sp-btn sp-btn-secondary">
+                Cancel
+              </button>
+              <button onClick={handleSave} disabled={saving} className="sp-btn sp-btn-primary">
+                {saving ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Check size={16} strokeWidth={1.5} />}
+                {saving ? "Saving" : "Save changes"}
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setEditing(true)} className="sp-btn sp-btn-secondary">
+              <Pencil size={16} strokeWidth={1.5} />
+              Edit
+            </button>
+          )
+        }
+      />
 
       {success && (
-        <div className="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style={{ background: "rgba(16, 185, 129, 0.1)", color: "var(--risk-safe)" }}>
-          Profile updated successfully.
-        </div>
+        <p className="mb-4 px-4 py-3 rounded-lg text-sm max-w-3xl" style={{ background: "var(--risk-safe-soft)", color: "var(--risk-safe)" }}>
+          Profile updated
+        </p>
       )}
-
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-xl text-sm font-medium" style={{ background: "rgba(244, 63, 94, 0.1)", color: "var(--risk-high)" }}>
+        <p className="mb-4 px-4 py-3 rounded-lg text-sm max-w-3xl" style={{ background: "var(--risk-high-soft)", color: "var(--risk-high)" }}>
           {error}
-        </div>
+        </p>
       )}
 
       {!user ? (
-        <p style={{ color: "var(--text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--text-secondary)" }}>Loading</p>
       ) : (
-        <div className="max-w-2xl">
-          <div className="rounded-2xl border p-4 sm:p-6" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
-            <EditableRow icon={User} label="Full Name" value={form.name} editable editing={editing} onChange={(v) => setForm({ ...form, name: v })} />
-            <EditableRow icon={Mail} label="Email" value={user.email} editable={false} editing={editing} />
-            <EditableRow icon={Phone} label="Phone" value={form.phone} editable editing={editing} onChange={(v) => setForm({ ...form, phone: v })} />
-            <EditableRow icon={CreditCard} label="UPI ID" value={user.upiId} editable={false} editing={editing} />
-            <EditableRow icon={Building2} label="Preferred Bank" value={form.preferredBank} editable editing={editing} onChange={(v) => setForm({ ...form, preferredBank: v })} options={INDIAN_BANKS} />
-            <EditableRow icon={Smartphone} label="Preferred UPI App" value={form.preferredApp} editable editing={editing} onChange={(v) => setForm({ ...form, preferredApp: v })} options={UPI_APPS} />
-            <EditableRow icon={BadgeCheck} label="Account Role" value={user.role} editable={false} editing={editing} />
-            <EditableRow icon={Calendar} label="Member Since" value={new Date(user.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })} editable={false} editing={editing} />
+        <div className="max-w-3xl">
+          <div className="sp-card">
+            <EditableRow label="Full name" value={form.name} editable editing={editing} onChange={(v) => setForm({ ...form, name: v })} />
+            <EditableRow label="Email" value={user.email} editable={false} editing={editing} />
+            <EditableRow label="Phone" value={form.phone} editable editing={editing} onChange={(v) => setForm({ ...form, phone: v })} mono />
+            <EditableRow label="UPI ID" value={user.upiId} editable={false} editing={editing} mono />
+            <EditableRow label="Preferred bank" value={form.preferredBank} editable editing={editing} onChange={(v) => setForm({ ...form, preferredBank: v })} options={INDIAN_BANKS} />
+            <EditableRow label="Preferred UPI app" value={form.preferredApp} editable editing={editing} onChange={(v) => setForm({ ...form, preferredApp: v })} options={UPI_APPS} />
+            <EditableRow label="Account role" value={user.role} editable={false} editing={editing} />
+            <EditableRow label="Member since" value={new Date(user.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })} editable={false} editing={editing} />
           </div>
 
-          {editing && (
-            <div className="flex gap-3 mt-4">
-              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold" style={{ background: "var(--accent)", color: "#fff", opacity: saving ? 0.7 : 1 }}>
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-              <button onClick={handleCancel} disabled={saving} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold border" style={{ color: "var(--text-primary)", borderColor: "var(--border)" }}>
-                <X size={14} />
-                Cancel
-              </button>
-            </div>
-          )}
-
-          <p className="text-xs mt-4 text-center" style={{ color: "var(--text-secondary)" }}>
-            User ID: {user?.id}
-          </p>
+          <p className="sp-label font-mono mt-4">User ID {user.id}</p>
         </div>
       )}
     </DashboardShell>

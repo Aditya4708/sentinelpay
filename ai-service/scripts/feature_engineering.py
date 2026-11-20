@@ -59,15 +59,11 @@ def build_features(transactions: pd.DataFrame, users: pd.DataFrame) -> pd.DataFr
             velocity[idxs[i]] = count
     df["txn_velocity_1h"] = velocity
 
-    for col in ["type", "merchant_category", "upi_app", "bank"]:
-        df[col + "_code"] = df[col].astype("category").cat.codes
-
     feature_cols = [
         "amount", "amount_log", "amount_vs_avg_ratio",
         "hour_of_day", "day_of_week", "is_odd_hour",
         "is_new_device", "is_new_city", "distance_from_home_km",
         "is_suspicious_merchant", "txn_velocity_1h",
-        "type_code", "merchant_category_code", "upi_app_code", "bank_code",
     ]
 
     return df, feature_cols

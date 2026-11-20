@@ -1,76 +1,108 @@
-import { useState } from "react";
-import { Shield, Menu, X } from "lucide-react";
+import React, { useState } from "react";
+import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
+import ThemeToggle, { ModeToggle, PalettePicker } from "./ThemeToggle";
+import { Logo } from "./DashboardShell";
 
-const NAV_LINKS = [
-  { label: "Product", href: "#" },
-  { label: "How it works", href: "#" },
-  { label: "Docs", href: "#" },
-  { label: "Pricing", href: "#" },
+interface NavLink {
+  label: string;
+  href: string;
+  external?: boolean;
+}
+
+// "#id" links scroll to a section on the landing page; external links open in a new tab.
+const NAV_LINKS: NavLink[] = [
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Live map", href: "#live-map" },
+  { label: "API docs", href: "http://localhost:4000/api/docs", external: true },
+  { label: "GitHub", href: "https://github.com/Aditya4708/sentinelpay", external: true },
 ];
+
+function goTo(e: React.MouseEvent, link: NavLink, close: () => void) {
+  close();
+  if (link.external) return;
+  e.preventDefault();
+  const el = document.querySelector(link.href);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="fixed top-6 left-0 right-0 z-50 px-4">
-      <nav
-        className="max-w-4xl mx-auto flex items-center justify-between px-4 py-3 rounded-full border"
-        style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}
-      >
-        <div className="flex items-center gap-2 pl-2">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "var(--accent-soft)" }}>
-            <Shield size={16} color="var(--accent)" />
-          </div>
-          <span className="font-display font-semibold text-sm" style={{ color: "var(--text-primary)" }}>
-            SentinelPay
-          </span>
-        </div>
+    <header className="fixed top-0 left-0 right-0 z-50 border-b" style={{ background: "var(--bg)", borderColor: "var(--border)" }}>
+      <nav className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-16">
+        <a
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        >
+          <Logo />
+        </a>
 
-        <div className="hidden md:flex items-center gap-7">
+        <div className="hidden md:flex items-center gap-6">
           {NAV_LINKS.map((link) => (
-            <a key={link.label} href={link.href} className="text-sm font-medium transition-colors" style={{ color: "var(--text-secondary)" }}>
+            <a
+              key={link.label}
+              href={link.href}
+              onClick={(e) => goTo(e, link, () => {})}
+              {...(link.external ? { target: "_blank", rel: "noreferrer" } : {})}
+              className="text-sm nav-link"
+              style={{ color: "var(--text-secondary)" }}
+            >
               {link.label}
             </a>
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-4">
           <ThemeToggle />
-          <Link to="/login" className="px-4 py-2 rounded-full text-sm font-medium border" style={{ color: "var(--text-primary)", borderColor: "var(--border)" }}>
-            Log In
+          <Link to="/login" className="text-sm nav-link" style={{ color: "var(--text-secondary)" }}>
+            Log in
           </Link>
-          <Link to="/signup" className="px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "var(--text-primary)", color: "var(--bg)" }}>
-            Sign Up
+          <Link to="/signup" className="sp-btn sp-btn-primary">
+            Sign up
           </Link>
         </div>
 
         <div className="flex md:hidden items-center gap-2">
-          <ThemeToggle />
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="w-9 h-9 flex items-center justify-center rounded-full" aria-label="Toggle menu">
-            {mobileMenuOpen ? <X size={18} color="var(--text-primary)" /> : <Menu size={18} color="var(--text-primary)" />}
+          <ModeToggle />
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="sp-btn sp-btn-ghost w-9 px-0" aria-label="Toggle menu" aria-expanded={mobileMenuOpen}>
+            {mobileMenuOpen ? <X size={18} strokeWidth={1.5} /> : <Menu size={18} strokeWidth={1.5} />}
           </button>
         </div>
       </nav>
 
       {mobileMenuOpen && (
-        <div className="max-w-4xl mx-auto mt-2 rounded-3xl border p-4 flex flex-col gap-2" style={{ background: "var(--surface)", borderColor: "var(--border)", boxShadow: "var(--shadow-card)" }}>
+        <div className="md:hidden border-t px-4 py-3 flex flex-col" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
           {NAV_LINKS.map((link) => (
-            <a key={link.label} href={link.href} className="py-2 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            <a
+              key={link.label}
+              href={link.href}
+              onClick={(e) => goTo(e, link, () => setMobileMenuOpen(false))}
+              {...(link.external ? { target: "_blank", rel: "noreferrer" } : {})}
+              className="h-10 flex items-center text-sm"
+              style={{ color: "var(--text-secondary)" }}
+            >
               {link.label}
             </a>
           ))}
-          <div className="flex gap-2 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-            <Link to="/login" className="flex-1 text-center py-2.5 rounded-full text-sm font-semibold border" style={{ color: "var(--text-primary)", borderColor: "var(--border)" }}>
-              Log In
+          <div className="flex items-center justify-between h-10">
+            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Colourway</span>
+            <PalettePicker />
+          </div>
+          <div className="flex gap-2 pt-3 mt-2 border-t" style={{ borderColor: "var(--border)" }}>
+            <Link to="/login" className="sp-btn sp-btn-secondary flex-1">
+              Log in
             </Link>
-            <Link to="/signup" className="flex-1 text-center py-2.5 rounded-full text-sm font-semibold" style={{ background: "var(--text-primary)", color: "var(--bg)" }}>
-              Sign Up
+            <Link to="/signup" className="sp-btn sp-btn-primary flex-1">
+              Sign up
             </Link>
           </div>
         </div>
       )}
-    </div>
+    </header>
   );
 }
